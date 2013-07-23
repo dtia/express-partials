@@ -4,7 +4,8 @@ var path = require('path')
   , resolve = path.resolve
   , dirname = path.dirname
   , extname = path.extname
-  , basename = path.basename;
+  , basename = path.basename
+  , cons = require('consolidate');
 
 
 /**
@@ -138,7 +139,7 @@ function renderer(ext){
   }
   return register[ext] != null
     ? register[ext]
-    : register[ext] = engineMap[ext.slice(1)] ? require(engineMap[ext.slice(1)]) : require(ext.slice(1)).render;
+    : register[ext] = engineMap[ext.slice(1)] ? cons[engineMap[ext.slice(1)]].render : require(ext.slice(1)).render;
 };
 
 module.exports.renderer = renderer;
