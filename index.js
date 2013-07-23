@@ -299,7 +299,7 @@ function partial(view, options){
 
   // find view
   var root = this.app.get('views') || process.cwd() + '/views'
-    , ext = extname(view) || '.' + (this.app.get('view engine')||'ejs')
+    , ext = this.app.get('view engine') || extname(view) || '.' + (this.app.get('view engine')||'ejs')
     , file = lookup(root, view, ext);
   
   // read view
