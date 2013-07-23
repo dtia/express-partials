@@ -39,11 +39,19 @@ module.exports = function(){
     res.partial = res.render;
 
     // in template partial(view,options)
-    res.locals.partial = partial.bind(res);
+    //res.locals.partial = partial.bind(res);
 
     // layout support
     var _render = res.render.bind(res);
     res.render = function(name, options, fn){
+      res.locals.partial = function(view, opts) {
+        if(typeof opts == 'object' && opts != undefined)
+          opts = union(options, opts);
+        else
+          opts = options;
+        return partial.call(res, view, opts);    
+      };
+        
       var layout = options && options.layout;
 
       // default layout
@@ -96,6 +104,21 @@ module.exports = function(){
   }
 }
 
+function union(a, b){
+    if (a && b) {
+      var keys = Object.keys(b)
+        , len = keys.length
+        , key;
+      for (var i = 0; i < len; ++i) {
+        key = keys[i];
+        if (!a.hasOwnProperty(key)) {
+          a[key] = b[key];
+        }
+      }
+    }
+    return a;
+  };
+
 /*** 
  * Allow to register a specific rendering
  * function for a given extension.
@@ -139,7 +162,7 @@ function renderer(ext){
   }
   return register[ext] != null
     ? register[ext]
-    : register[ext] = engineMap[ext.slice(1)] ? cons[engineMap[ext.slice(1)]].render : require(ext.slice(1)).render;
+    : register[ext] = engineMap[ext.slice(1)] ? require(engineMap[ext.slice(1)]).template: require(ext.slice(1)).render;
 };
 
 module.exports.renderer = renderer;
@@ -297,7 +320,15 @@ function partial(view, options){
     options[k] = options[k] || this.req.res.locals[k];
 
   // let partials render partials
-  options.partial = partial.bind(this);
+  //options.partial = partial.bind(this);
+  var that = this;
+  options.partial = function(view, opts) {
+    if(typeof opts == 'object' && opts != undefined)
+      opts = union(options, opts);
+    else
+      opts = options;
+    return partial.call(that, view, opts);
+  }
 
   // extract object name from view
   name = options.as || resolveObjectName(view);
@@ -319,8 +350,8 @@ function partial(view, options){
       if ('string' == typeof name) {
         options[name] = object;
       } else if (name === global) {
-        // wtf?
-        // merge(options, object);
+        if(typeof object == 'object' && object != undefined)
+          options = union(options, object);
       }
     }
     return renderer(ext)(source, options);
