@@ -128,13 +128,17 @@ module.exports.register = register;
  * has been registered.
  */
 
+var engineMap = {
+    'html' : 'underscore'
+};
+
 function renderer(ext){
   if(ext[0] !== '.'){
     ext = '.' + ext;
   }
   return register[ext] != null
     ? register[ext]
-    : register[ext] = require(ext.slice(1)).render;
+    : register[ext] = engineMap[ext.slice(1)] ? require(engineMap[ext.slice(1)]) : require(ext.slice(1)).render;
 };
 
 module.exports.renderer = renderer;
@@ -299,7 +303,7 @@ function partial(view, options){
 
   // find view
   var root = this.app.get('views') || process.cwd() + '/views'
-    , ext = this.app.get('view engine') || extname(view) || '.' + (this.app.get('view engine')||'ejs')
+    , ext = extname(view) || '.' + (this.app.get('view engine')||'ejs')
     , file = lookup(root, view, ext);
   
   // read view
