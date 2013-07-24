@@ -35,8 +35,24 @@ var path = require('path')
 
 module.exports = function(){
   return function(req,res,next){
+      
     // res.partial(view,options) -> res.render() (ignores any layouts)
-    res.partial = res.render;
+    res.partial = function(name, options, fn){
+      res.locals.partial = function(view, opts) {
+        if(typeof opts == 'object' && opts != undefined) {
+          if(options.collection) { 
+              delete options.collection;
+              delete options.__proto__.collection;
+          }
+          opts = merge(options, opts);  
+        } else {
+          opts = options;  
+        }
+          
+        return partial.call(res, view, opts);    
+      };            
+        _render(name, options, fn);
+    }
 
     // in template partial(view,options)
     //res.locals.partial = partial.bind(res);
@@ -45,10 +61,15 @@ module.exports = function(){
     var _render = res.render.bind(res);
     res.render = function(name, options, fn){
       res.locals.partial = function(view, opts) {
-        if(typeof opts == 'object' && opts != undefined)
-          opts = union(options, opts);
-        else
-          opts = options;
+       if(typeof opts == 'object' && opts != undefined) {
+          if(options.collection) { 
+              delete options.collection;
+              delete options.__proto__.collection;
+          }
+          opts = merge(options, opts);  
+        } else {
+          opts = options;  
+        }
         return partial.call(res, view, opts);    
       };
         
@@ -103,6 +124,15 @@ module.exports = function(){
     next();
   }
 }
+
+function merge(a, b){
+    if (a && b) {
+      for (var key in b) {
+        a[key] = b[key];
+      }
+    }
+    return a;
+  };
 
 function union(a, b){
     if (a && b) {
@@ -276,14 +306,19 @@ function partial(view, options){
   var collection
     , object
     , locals
-    , name;
+    , name
+    , emptyCollection;
 
   // parse options
   if( options ){
     // collection
     if( options.collection ){
-      collection = options.collection;
+      if(options.collection.length > 0)  
+        collection = options.collection;
+      else
+        emptyCollection = true;
       delete options.collection;
+      delete options.__proto__.collection;
     } else if( 'length' in options ){
       collection = options;
       options = {};
@@ -323,10 +358,15 @@ function partial(view, options){
   //options.partial = partial.bind(this);
   var that = this;
   options.partial = function(view, opts) {
-    if(typeof opts == 'object' && opts != undefined)
-      opts = union(options, opts);
-    else
+    if(typeof opts == 'object' && opts != undefined) {
+      if(options.collection) { 
+          delete options.collection;
+          delete options.__proto__.collection;
+      }
+      opts = merge(options, opts);      
+    } else {
       opts = options;
+    }
     return partial.call(that, view, opts);
   }
 
@@ -350,11 +390,25 @@ function partial(view, options){
       if ('string' == typeof name) {
         options[name] = object;
       } else if (name === global) {
-        if(typeof object == 'object' && object != undefined)
-          options = union(options, object);
+        if(typeof object == 'object' && object != undefined) {
+          if(options.collection) { 
+              delete options.collection;
+              delete options.__proto__.collection;
+          }
+          options = merge(options, object);
+        }
+          
       }
     }
-    return renderer(ext)(source, options);
+    var rendered = '';
+    try {
+        rendered = renderer(ext)(source, options);
+    } catch(e) {
+        console.log(e);
+        console.log(source);
+        throw e;
+    }
+    return rendered;
   }
 
   // Collection support
@@ -362,11 +416,15 @@ function partial(view, options){
     var len = collection.length
       , buf = ''
       , keys
-      , key
+      , keyunion
       , val;
 
     if ('number' == typeof len || Array.isArray(collection)) {
       options.collectionLength = len;
+      
+      if(len == 0)
+        buf += render();
+      
       for (var i = 0; i < len; ++i) {
         val = collection[i];
         options.firstInCollection = i == 0;
@@ -393,7 +451,7 @@ function partial(view, options){
     }
 
     return buf;
-  } else {
+  } else if (!emptyCollection){
     return render();
   }
 }
