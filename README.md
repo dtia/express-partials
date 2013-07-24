@@ -2,7 +2,7 @@
 
 Express-partials didn't work out of the box for us. Some missing things that we used from Express 2.x partials:
 
--Partials should still have the context of its parents' local options
+-Partials should still have the context of its parents' local options<br>
 -partial(...,{collection:someCol}) shouldn't attempt to render if there's no items in someCol since it causes undefined variable issues
 
 [![build status](https://secure.travis-ci.org/publicclass/express-partials.png)](http://travis-ci.org/publicclass/express-partials)
