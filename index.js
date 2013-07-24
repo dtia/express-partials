@@ -37,13 +37,13 @@ module.exports = function(){
   return function(req,res,next){
       
     // res.partial(view,options) -> res.render() (ignores any layouts)
+      
+    // @Thomas: FORK START
     res.partial = function(name, options, fn){
       res.locals.partial = function(view, opts) {
+        delete options.collection;
+        delete options.__proto__.collection;
         if(typeof opts == 'object' && opts != undefined) {
-          if(options.collection) { 
-              delete options.collection;
-              delete options.__proto__.collection;
-          }
           opts = merge(options, opts);  
         } else {
           opts = options;  
@@ -53,25 +53,27 @@ module.exports = function(){
       };            
         _render(name, options, fn);
     }
+    // @Thomas: END
 
     // in template partial(view,options)
-    //res.locals.partial = partial.bind(res);
+    //res.locals.partial = partial.bind(res); // @Thomas: FORKED: We need partials to support the parent's locals
 
     // layout support
     var _render = res.render.bind(res);
     res.render = function(name, options, fn){
+        
+      // @Thomas: FORK START: Support partials w/ parent's locals
       res.locals.partial = function(view, opts) {
+       delete options.collection;
+       delete options.__proto__.collection;
        if(typeof opts == 'object' && opts != undefined) {
-          if(options.collection) { 
-              delete options.collection;
-              delete options.__proto__.collection;
-          }
           opts = merge(options, opts);  
         } else {
           opts = options;  
         }
         return partial.call(res, view, opts);    
       };
+      // @Thomas: END
         
       var layout = options && options.layout;
 
@@ -125,29 +127,31 @@ module.exports = function(){
   }
 }
 
+// @Thomas: FORK START: Bring ing merge and union helpers from express 2.x
 function merge(a, b){
-    if (a && b) {
-      for (var key in b) {
+  if (a && b) {
+    for (var key in b) {
+      a[key] = b[key];
+    }
+  }
+  return a;
+};
+
+function union(a, b){
+  if (a && b) {
+    var keys = Object.keys(b)
+      , len = keys.length
+      , key;
+    for (var i = 0; i < len; ++i) {
+      key = keys[i];
+      if (!a.hasOwnProperty(key)) {
         a[key] = b[key];
       }
     }
-    return a;
-  };
-
-function union(a, b){
-    if (a && b) {
-      var keys = Object.keys(b)
-        , len = keys.length
-        , key;
-      for (var i = 0; i < len; ++i) {
-        key = keys[i];
-        if (!a.hasOwnProperty(key)) {
-          a[key] = b[key];
-        }
-      }
-    }
-    return a;
-  };
+  }
+  return a;
+};
+// @Thomas: END
 
 /*** 
  * Allow to register a specific rendering
@@ -182,9 +186,11 @@ module.exports.register = register;
  * has been registered.
  */
 
+// @Thomas: FORK START
 var engineMap = {
     'html' : 'underscore'
 };
+// @Thomas: END
 
 function renderer(ext){
   if(ext[0] !== '.'){
@@ -192,7 +198,7 @@ function renderer(ext){
   }
   return register[ext] != null
     ? register[ext]
-    : register[ext] = engineMap[ext.slice(1)] ? require(engineMap[ext.slice(1)]).template: require(ext.slice(1)).render;
+    : register[ext] = engineMap[ext.slice(1)] ? require(engineMap[ext.slice(1)]).template: require(ext.slice(1)).render; // @Thomas: FORKED: Use underscore directly. Consolidate.js underscore.render was looking for a CB.
 };
 
 module.exports.renderer = renderer;
@@ -307,18 +313,22 @@ function partial(view, options){
     , object
     , locals
     , name
-    , emptyCollection;
+    , emptyCollection; // @Thomas: FORKED
 
   // parse options
   if( options ){
     // collection
     if( options.collection ){
+        
+      // @Thomas: FORK START: Support express 2.x idiosyncracies of collections  
       if(options.collection.length > 0)  
         collection = options.collection;
       else
         emptyCollection = true;
       delete options.collection;
       delete options.__proto__.collection;
+      // @Thomas: END
+      
     } else if( 'length' in options ){
       collection = options;
       options = {};
@@ -355,20 +365,22 @@ function partial(view, options){
     options[k] = options[k] || this.req.res.locals[k];
 
   // let partials render partials
+  
+  // @Thomas: FORK START: Support partials w/ parent's locals
   //options.partial = partial.bind(this);
   var that = this;
   options.partial = function(view, opts) {
+    delete options.collection;
+    delete options.__proto__.collection;
+      
     if(typeof opts == 'object' && opts != undefined) {
-      if(options.collection) { 
-          delete options.collection;
-          delete options.__proto__.collection;
-      }
       opts = merge(options, opts);      
     } else {
       opts = options;
     }
     return partial.call(that, view, opts);
   }
+  // @Thomas: END
 
   // extract object name from view
   name = options.as || resolveObjectName(view);
@@ -390,14 +402,14 @@ function partial(view, options){
       if ('string' == typeof name) {
         options[name] = object;
       } else if (name === global) {
+          
+        // @Thomas: FORK START
         if(typeof object == 'object' && object != undefined) {
-          if(options.collection) { 
-              delete options.collection;
-              delete options.__proto__.collection;
-          }
+          delete options.collection;
+          delete options.__proto__.collection;
           options = merge(options, object);
         }
-          
+        // @Thomas: END 
       }
     }
     var rendered = '';
@@ -422,8 +434,10 @@ function partial(view, options){
     if ('number' == typeof len || Array.isArray(collection)) {
       options.collectionLength = len;
       
+      // @Thomas: FORK START: Partials w/o a collection passed in should still render
       if(len == 0)
         buf += render();
+      // @Thomas: END
       
       for (var i = 0; i < len; ++i) {
         val = collection[i];
@@ -451,7 +465,7 @@ function partial(view, options){
     }
 
     return buf;
-  } else if (!emptyCollection){
+  } else if (!emptyCollection){ // @Thomas: FORKED: Support old partial behavior: empty collections in partials shouldn't render
     return render();
   }
 }
