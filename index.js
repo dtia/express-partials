@@ -44,7 +44,7 @@ module.exports = function(){
         delete options.collection;
         delete options.__proto__.collection;
         if(typeof opts == 'object' && opts != undefined) {
-          opts = merge(options, opts);  
+          union(opts, options);  
         } else {
           opts = options;  
         }
@@ -67,7 +67,7 @@ module.exports = function(){
        delete options.collection;
        delete options.__proto__.collection;
        if(typeof opts == 'object' && opts != undefined) {
-          opts = merge(options, opts);  
+          union(opts, options);  
         } else {
           opts = options;  
         }
@@ -374,7 +374,7 @@ function partial(view, options){
     delete options.__proto__.collection;
       
     if(typeof opts == 'object' && opts != undefined) {
-      opts = merge(options, opts);      
+      union(opts, options);      
     } else {
       opts = options;
     }
@@ -390,7 +390,7 @@ function partial(view, options){
     , ext = extname(view) || '.' + (this.app.get('view engine')||'ejs')
     , file = lookup(root, view, ext);
   
-  // read view
+  // read view  
   var source = fs.readFileSync(file,'utf8');
 
   // set filename option for renderer (Jade requires this for includes)
@@ -407,7 +407,7 @@ function partial(view, options){
         if(typeof object == 'object' && object != undefined) {
           delete options.collection;
           delete options.__proto__.collection;
-          options = merge(options, object);
+          merge(options, object);
         }
         // @Thomas: END 
       }
@@ -417,6 +417,7 @@ function partial(view, options){
         rendered = renderer(ext)(source, options);
     } catch(e) {
         console.log(e);
+        console.log(view);
         console.log(source);
         throw e;
     }
